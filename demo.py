@@ -1,3 +1,5 @@
+import pdb
+
 import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
@@ -76,6 +78,21 @@ if __name__ == "__main__":
         start_time = getTime()
         with torch.no_grad():
             (inps, orig_img, im_name, boxes, scores, pt1, pt2) = det_processor.read()
+            print('im_name', im_name)
+            if args.bb_only:
+                sort = np.argsort(-scores, 0).reshape(-1)
+                np.save('%s.npy' % im_name, boxes[sort])
+                continue
+            print(boxes)
+            # pdb.set_trace()
+            sort = np.argsort(-scores, 0).reshape(-1)
+            np.save('%s.npy' % im_name, boxes[sort])
+            with open('%s.txt' % im_name, 'w') as fout:
+                fout.write('@ %s\n' % os.path.realpath(im_name))
+                for i in range(boxes.shape[0]):
+                    tsv = '\t'.join( [str(f.item()) for f in boxes[sort[i],:]] )
+                    fout.write('%s\n' % tsv)
+            continue
             if boxes is None or boxes.nelement() == 0:
                 writer.save(None, None, None, None, None, orig_img, im_name.split('/')[-1])
                 continue
@@ -98,10 +115,16 @@ if __name__ == "__main__":
             ckpt_time, pose_time = getTime(ckpt_time)
             runtime_profile['pt'].append(pose_time)
             hm = hm.cpu()
+            print('\n\n hm ++ ')
+            # print(hm)
+            print(type(hm))
+            print(hm.shape)
+            print(' / hm ++\n\n')
             writer.save(boxes, scores, hm, pt1, pt2, orig_img, im_name.split('/')[-1])
 
             ckpt_time, post_time = getTime(ckpt_time)
             runtime_profile['pn'].append(post_time)
+            # pdb.set_trace()
         
         if args.profile:
             # TQDM

@@ -3,11 +3,15 @@ import torch
 
 parser = argparse.ArgumentParser(description='PyTorch AlphaPose Training')
 
+"----------------------------- Markham options -----------------------------"
+parser.add_argument('--bb', dest='bb_only', action='store_true',
+                    help='Only get numpy bbs and write to file then quit')
+
 "----------------------------- General options -----------------------------"
 parser.add_argument('--expID', default='default', type=str,
                     help='Experiment ID')
 parser.add_argument('--dataset', default='coco', type=str,
-                    help='Dataset choice: mpii | coco')
+                    help='Dataset choice: mpii | coco | ucd | ucdii')
 parser.add_argument('--nThreads', default=30, type=int,
                     help='Number of data loading threads')
 parser.add_argument('--debug', default=False, type=bool,
