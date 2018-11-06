@@ -4,6 +4,7 @@
 # -----------------------------------------------------
 
 import torch
+import torch.nn as nn
 import torch.utils.data
 from utils.dataset import coco
 from utils.dataset import ucdcv
@@ -114,7 +115,16 @@ def main():
     m = createModel().cuda()
     if opt.loadModel:
         print('Loading Model from {}'.format(opt.loadModel))
-        m.load_state_dict(torch.load(opt.loadModel))
+        state_dict = torch.load(opt.loadModel)
+        if len(state_dict['conv_out.bias']) != opt.nClasses:
+            print('Building new conv_out weights')
+            state_dict['conv_out.weight'] = torch.ones((opt.nClasses, 128, 3, 3))
+            state_dict['conv_out.bias']   = torch.ones((opt.nClasses,))
+            m.load_state_dict(state_dict)
+            nn.init.xavier_normal_(m.conv_out.weight)
+            nn.init.normal_(m.conv_out.bias)
+        else:
+            m.load_state_dict(state_dict)
         if not os.path.exists("../exp/{}/{}".format(opt.dataset, opt.expID)):
             try:
                 os.mkdir("../exp/{}/{}".format(opt.dataset, opt.expID))

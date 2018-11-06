@@ -38,4 +38,6 @@ class FastPose_SE(nn.Module):
         out = self.duc2(out)
 
         out = self.conv_out(out)
+
+        out = out.narrow(1, 0, 17)
         return out
