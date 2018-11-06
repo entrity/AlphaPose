@@ -194,7 +194,7 @@ def main():
         opt.acc = acc
         opt.loss = loss
         m_dev = m.module
-        if i % opt.snapshot == 0:
+        if opt.snapshot and i % opt.snapshot == 0:
             torch.save(
                 m_dev.state_dict(), '../exp/{}/{}/model_{}.pkl'.format(opt.dataset, opt.expID, opt.epoch))
             torch.save(
