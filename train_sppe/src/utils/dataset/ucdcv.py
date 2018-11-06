@@ -117,15 +117,12 @@ class UcdCV(data.Dataset):
         kpy              = np.stack( [self.meta[key] for key in headers[6::2]] )
         self.all_kps     = np.stack( [kpx, kpy] ).transpose(2,1,0)
         self.all_kps     = self.all_kps.astype(np.int64)
-        # print(self.all_bbs.shape, self.all_bbs.dtype)
-        # print(self.all_kps.shape, self.all_kps.dtype)
-        # print(self.keypoint_indices.shape)
-        # # import IPython
-        # IPython.embed()
-        # Partition into train vs test
-        n = len(self.meta)
-        train_test_boundary = int(n * .9)
-        self.rows        = np.arange(train_test_boundary) if self.is_train else np.arange(train_test_boundary, n)
+
+        # Let all images from video 7 be the test set
+        is_in_testset  = lambda i: self.all_impath[i].startswith('images/7/')
+        is_in_trainset = lambda i: not is_in_testset(i)
+        is_in_set      = is_in_trainset if self.is_train else is_in_testset
+        self.rows      = [i for i in range(len(self.all_impath)) if is_in_set(i)]
 
     def __getitem__(self, index):
         pindex   = self.rows[index]
