@@ -1,0 +1,13 @@
+import argparse
+parser = argparse.ArgumentParser(description='Minimize hole using segmentation map')
+parser.add_argument('--act', action='append', help='what action to perform')
+parser.add_argument('-f', '--frames', action='append', help='what frames to act on')
+parser.add_argument('-n', default=20, type=int, help='how many images to process')
+parser.add_argument('-v', '--verbose', default=False, action='store_true', help='verbose output')
+parser.add_argument('-d', '--delta', default=0.2, type=float, help='delta, threshold')
+parser.add_argument('--rec', dest='load_recompiled_data', default=False, action='store_true')
+parser.add_argument('--nosave', dest='do_save', action='store_false', default=True)
+parser.add_argument('--noscreen', dest='no_screen', action='store_true', default=False)
+parser.add_argument('-s', '--spread', type=int, default=0)
+parser.add_argument('-o', '--out', help='directory for output files')
+opts = parser.parse_args()

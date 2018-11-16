@@ -31,43 +31,28 @@ class Example(object):
 		self.imdata = np.array(img.getdata(), np.uint8).reshape(img.height, img.width, 3)
 
 	def binmask(self):
-		binmask = np.ones_like( self.maskdata, np.uint8 )
+		_binmask = np.ones_like( self.maskdata, np.uint8 )
 		for category in MASKED_CATEGORIES:
 			xmask, ymask = np.where( self.maskdata == category )
-			binmask[xmask, ymask] -= 1
-		if opts.spread:
-			for offset in range(opts.spread):
-				if offset:
-					binmask[offset:,:] *= binmask[:-offset,:] # down
-					binmask[:,offset:] *= binmask[:,:-offset] # right
-					binmask[:-offset,:] *= binmask[offset:,:] # up
-					binmask[:,:-offset] *= binmask[:,offset:] # left
-		assert binmask.min() == 0, binmask.min()
-		return np.expand_dims( binmask, 2 )
+			_binmask[xmask, ymask] -= 1
+		assert _binmask.min() == 0, _binmask.min()
+		return _binmask
 
 	def mask(self, binmask):
-		imdata  = self.imdata.copy()
-		imdata *= binmask
+		xmask, ymask = np.where( binmask == 0 )
+		imdata = self.imdata.copy()
+		imdata[xmask, ymask, :] = 0
 		return imdata
 
-	# Return imdata with masked regions set to 0
 	def masked(self):
 		return self.mask(self.binmask())
 
-	# Return imdata with masked regions set to 255
-	def minmasked(self):
-		imdata  = self.imdata.copy()
-		binmask = self.binmask()
-		maxvals = 255 * (1-binmask)
-		return self.mask(binmask) + maxvals
 
 class Compiler(object):
 	def init_totals(self, imdata, maskdata):
-		self.counts = np.expand_dims( np.zeros_like( maskdata, np.uint32 ), 2 )
+		self.counts = np.zeros_like( maskdata, np.uint32 )
 		self.sums   = np.zeros_like( imdata,   np.uint32 )
 		self.maxes  = np.zeros_like( imdata,   np.uint8 )
-		self.immaxes  = np.zeros_like( imdata,   np.uint8 )
-		self.immins   = np.ones_like(  imdata,   np.uint8 ) * 255
 		self.mins   = np.ones_like(  imdata,   np.uint8 ) * 255
 
 	# Given counts and sums from before, make new counts, sums, maxes, mins
@@ -118,30 +103,22 @@ class Compiler(object):
 			if opts.n and i == opts.n: break
 
 			ex        = Example(im_path)
+			imdata   = ex.imdata
+			maskdata = ex.maskdata
 			print('%6d/%d %s' % (i, len(sources), ex.bname))
 
 			# Initialize global variables
-			if i == 0: self.init_totals(ex.imdata, ex.maskdata)
+			if i == 0: self.init_totals(imdata, maskdata)
 			# Update global variables
-			self.counts += ex.binmask()
+			binmask = ex.binmask()
+			self.counts += binmask
 			# Mask current image
-			masked = ex.masked()
-			minmasked = ex.minmasked()
-			if opts.verbose: imshow(masked)
-			self.sums  += masked # masked imagedata
-			self.maxes  = np.maximum(self.maxes, masked)
-			self.immaxes  = np.maximum(self.immaxes, ex.imdata)
-			self.mins   = np.minimum(self.mins, minmasked)
-			self.immins   = np.minimum(self.immins, ex.imdata)
-
-			if i % 10 == 0:
-				imsave(self.maxes, '%d.jpg' % i)
-				imsave(self.mins, 'min-%d.jpg' % i)
-				avg = np.divide(self.sums, self.counts)
-				imsave(avg, 'avg-%d.jpg' % i)
-				imsave(self.immaxes, 'immax-%d.jpg' % i)
-				imsave(self.immins, 'immin-%d.jpg' % i)
-
+			xmask, ymask = np.where( binmask == 0 )
+			imdata[xmask, ymask, :] = 0
+			if opts.verbose: imshow(imdata)
+			self.sums  += imdata # masked imagedata
+			self.maxes  = np.maximum(self.maxes, imdata)
+			self.mins   = np.minimum(self.mins, imdata)
 
 		# Save global variables
 		if opts.do_save:
@@ -158,11 +135,7 @@ def affix(stem):
 		return '%s-n%d.npy' % (stem, opts.n)
 
 def get_sources():
-	if opts.frames:
-		print(opts.frames)
-		return [os.path.join(IMG_DIR, '%05d.jpg' % int(f,10)) for f in opts.frames]
-	else:
-		return glob.glob(os.path.join(IMG_DIR, '*.jpg'))
+	return glob.glob(os.path.join(IMG_DIR, '*.jpg'))
 	
 def load():
 	counts = np.load(affix('counts'))
@@ -171,16 +144,7 @@ def load():
 	mins   = np.load(affix('mins'))
 	return counts, sums, maxes, mins
 
-def imout(imdata, fpath):
-	if opts.no_screen:
-		imsave(imdata, fpath)
-		print('saved to %s' % fpath)
-	else:
-		imshow(fpath)
 def imsave(imdata, fpath):
-	if opts.out and fpath == os.path.basename(fpath):
-		fpath = os.path.join(opts.out, fpath)
-		if not os.path.exists(opts.out): os.makedirs(opts.out)
 	Image.fromarray(imdata.astype(np.uint8)).save(fpath)
 def imshow(imdata):
 	plt.imshow(imdata)
@@ -213,8 +177,9 @@ def show_masks():
 	sources = get_sources()
 	for i in range(opts.n or len(sources)):
 		ex = Example(sources[i])
-		# imout(ex.maskdata, 'maskdat-%s' % ex.bname)
-		imout(ex.masked(), 'masked-%s' % ex.bname)
+		imshow(ex.maskdata)
+		imshow(ex.masked())
+		imsave(ex.masked(), 'floor-mask.png')
 
 def list_mask_cats():
 	from collections import OrderedDict
