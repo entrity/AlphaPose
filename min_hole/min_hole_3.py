@@ -10,8 +10,20 @@ from options import opts
 BASE_DIR = os.path.expanduser('~/mnt')
 IMG_DIR  = os.path.join(BASE_DIR, 'first_third_person/pose_data/training_data/training/training')
 MASK_DIR = os.path.join(BASE_DIR, 'first_third_person/Shift-Net_pytorch/datasets/Paris_StreetView_Dataset/Mask2')
+assert os.path.exists(IMG_DIR), IMG_DIR
+assert os.path.exists(MASK_DIR), MASK_DIR
 
-MASKED_CATEGORIES = [12, 19, 31, 32, 74, 75,  98, 147, 141, 143]
+# Nix:
+# 12 person;individual;someone;somebody;mortal;soul
+# 19 chair
+# 31 seat
+# 74 computer;computing;machine;computing;device;data;processor;electronic;computer;information;processing;system
+# 75 swivel;chair
+# 98 bottle
+# 141 crt;screen
+# 143 monitor;monitoring;device
+# 147 glass;drinking;glass
+MASKED_CATEGORIES = [12, 19, 31, 74, 75, 98, 147, 141, 143]
 # MASKED_CATEGORIES += [0]
 # MASKED_CATEGORIES += [3]
 # MASKED_CATEGORIES += [10]
@@ -141,6 +153,7 @@ class Compiler(object):
 				imsave(avg, 'avg-%d.jpg' % i)
 				imsave(self.immaxes, 'immax-%d.jpg' % i)
 				imsave(self.immins, 'immin-%d.jpg' % i)
+				np.save(outpath('mask-%d.jpg' % i), ex.binmask())
 
 
 		# Save global variables
@@ -170,6 +183,11 @@ def load():
 	maxes  = np.load(affix('maxes'))
 	mins   = np.load(affix('mins'))
 	return counts, sums, maxes, mins
+
+def outpath(name_or_path):
+	if opts.out and name_or_path == os.path.basename(name_or_path):
+		return os.path.join(opts.out, name_or_path)
+	return name_or_path
 
 def imout(imdata, fpath):
 	if opts.no_screen:
@@ -221,13 +239,13 @@ def list_mask_cats():
 	cats = get_mask_categories()
 	dic = OrderedDict()
 	sources = get_sources()
+	catids = set()
 	for i in range(opts.n or len(sources)):
+		print(i)
 		ex  = Example(sources[i])
-		catids = np.unique( ex.maskdata )
-		for x in catids:
-			dic[x] = cats[x]
-	for k in dic:
-		print( '%3d\t%s' % (k, dic[k] ))
+		catids.update(set(np.unique( ex.maskdata )))
+	for k in catids:
+		print( '%3d\t%s' % (k, cats[k] ))
 
 
 if __name__ == '__main__':

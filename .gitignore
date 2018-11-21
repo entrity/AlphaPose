@@ -8,12 +8,16 @@ PoseFlow/alpha-pose-results-val.json
 PoseFlow/test-predict
 PoseFlow/val-predict
 ssd/examples
+examples
+data
+.tensorboard
 
 *.npy
 *.so
 *.pyc
 .ipynb_checkpoints
 */.ipynb_checkpoints/
+*.tmp
 
 *.pth
 *.json
@@ -21,4 +25,15 @@ ssd/examples
 *.zip
 *.weights
 
+tmp.*
+
 coco-minival/
+
+train_sppe/exp
+src
+
+*.html
+*.list
+*.sublime-project
+*.sublime-workspace
+nohup.*
