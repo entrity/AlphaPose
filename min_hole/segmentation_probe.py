@@ -74,12 +74,21 @@ class UI(Tk):
 
 	# data should be numpy array with segmentation classes as values
 	def load_pcolor(self, canvas, data, scale):
+		# Save scaling factor
 		canvas.scaling_factor = scale
+		# Remap colors to enhance distinction in pcolormesh
+		val2new = dict([(v,i) for i,v in enumerate(np.unique(data))])
+		copy    = np.ndarray(data.shape, data.dtype)
+		for v in val2new.keys(): copy[np.where(data == v)] = val2new[v]
+		data = copy
+		# Build pyplot figure
 		dpi = 100
 		fig = plt.figure(figsize=(data.shape[1]*scale/dpi, data.shape[0]*scale/dpi), dpi=dpi)
 		ax = fig.add_axes([0,0,1,1])
 		ax.set_axis_off()
+		# Draw image
 		plt.pcolormesh( data, cmap='hsv' )
+		# Put image on canvas
 		agg = FigureCanvasAgg(fig)
 		agg.draw()
 		x, y, w, h = [int(x) for x in fig.bbox.bounds]
