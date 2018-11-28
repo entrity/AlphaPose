@@ -37,8 +37,12 @@ class UI(Tk):
 		self.canvas_a0.grid(row=0, column=0)
 		self.canvas_b0.grid(row=0, column=0)
 		self.canvas_b1.grid(row=0, column=1)
-		self.canvas_a0.bind('<Motion>', on_canvas_motion)
-		self.canvas_frame_a.tkraise()
+		def init_canvas(canvas):
+			canvas.bind('<Motion>', on_canvas_motion)
+			canvas.oval_id = None
+		init_canvas(self.canvas_a0)
+		init_canvas(self.canvas_b0)
+		init_canvas(self.canvas_b1)
 		# Controls
 		ctrl = Frame(self)
 		ctrl.grid(row=0, column=1)
@@ -63,12 +67,16 @@ class UI(Tk):
 		dim = (self.img.width, self.img.height)
 		self.maskdata   = np.array(Image.open(maskpath).getdata()).reshape(dim[1], dim[0])
 		# Canvas A0
-		self.load_pcolor( self.canvas_a0, np.flip(self.maskdata,0) )
+		self.load_pcolor( self.canvas_a0, np.flip(self.maskdata,0), IMG_SCALE_A )
+		# Canvas B0
+		self.load_pcolor( self.canvas_b0, np.flip(self.maskdata,0), IMG_SCALE_A*.5 )
+		self.load_rgb( self.canvas_b1, self.img, IMG_SCALE_A*.5 )
 
 	# data should be numpy array with segmentation classes as values
-	def load_pcolor(self, canvas, data):
+	def load_pcolor(self, canvas, data, scale):
+		canvas.scaling_factor = scale
 		dpi = 100
-		fig = plt.figure(figsize=(data.shape[1]*IMG_SCALE_A/dpi, data.shape[0]*IMG_SCALE_A/dpi), dpi=dpi)
+		fig = plt.figure(figsize=(data.shape[1]*scale/dpi, data.shape[0]*scale/dpi), dpi=dpi)
 		ax = fig.add_axes([0,0,1,1])
 		ax.set_axis_off()
 		plt.pcolormesh( data, cmap='hsv' )
@@ -80,10 +88,11 @@ class UI(Tk):
 		canvas.config( width=w, height=h )
 		tkagg.blit( canvas.img, agg.get_renderer()._renderer, colormode=2 )
 
-	def load_rgb(self, canvas, img):
+	def load_rgb(self, canvas, img, scale):
+		canvas.scaling_factor = scale
 		img_id = canvas.create_image(0, 0, anchor='nw')
 		dim = (img.width, img.height)
-		scaled_dim = tuple([round(x*IMG_SCALE_A) for x in dim])
+		scaled_dim = tuple([round(x*scale) for x in dim])
 		scaled_img = img.resize(scaled_dim, Image.ANTIALIAS)
 		canvas.img = ImageTk.PhotoImage(scaled_img)
 		canvas.config(width=scaled_dim[0], height=scaled_dim[1])
@@ -101,9 +110,18 @@ class UI(Tk):
 		self.label_cat.config(text='C: %4d\n%s' % (self.cat, label))
 
 	def on_canvas_motion(self, evt):
-		x = round(evt.x / IMG_SCALE_A)
-		y = round(evt.y / IMG_SCALE_A)
+		canvas = evt.widget
+		x = round(evt.x / canvas.scaling_factor)
+		y = round(evt.y / canvas.scaling_factor)
+		if canvas == self.canvas_b0:
+			set_oval(self.canvas_b1, evt.x, evt.y)
+		elif canvas == self.canvas_b1:
+			set_oval(self.canvas_b0, evt.x, evt.y)
 		self.set_xy(x,y)
+
+def set_oval(canvas, x, y):
+	if canvas.oval_id is not None: canvas.delete(canvas.oval_id)
+	canvas.oval_id = canvas.create_oval(x-2, y-2, x+2, y+2, fill='#00ff00', outline='#ff00ff')
 
 def onkeypress(evt):
 	if evt.char.lower() == 'q':
@@ -118,9 +136,9 @@ def on_canvas_motion(evt):
 def onclickmode(evt):
 	val = evt.widget.config('value')[4]
 	if val == 0:
-		ui.a.tkraise()
+		ui.canvas_frame_a.tkraise()
 	else:
-		ui.b.tkraise()
+		ui.canvas_frame_b.tkraise()
 
 def make_label_map():
 	with open(LABEL_FILE, 'r') as f:
