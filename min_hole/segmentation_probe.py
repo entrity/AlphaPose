@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys, os
 import csv
 from tkinter import *
@@ -11,6 +13,8 @@ import pdb
 maskpath = 'data/Mask2/00001.png'
 impath = 'data/Mask/00001.png'
 impath = 'data/training/00001.jpg'
+ORIG_DIR = 'data/training'
+MASK_DIR = 'data/Mask2'
 IMG_SCALE_A = 0.9
 LABEL_FILE = 'object150_info.csv'
 
@@ -18,10 +22,12 @@ class UI(Tk):
 	def __init__(self):
 		super(UI, self).__init__()
 		self.bind('<Key>', onkeypress)
+		self.bind('<Right>', onrightpress)
+		self.bind('<Left>', onleftpress)
 		self.img  = None
 		self.maskdata = None # numpy array
 		self.init_components()
-		self.load(impath, maskpath)
+		self.load_frame(1)
 
 	def init_components(self):
 		# Canvas
@@ -47,10 +53,15 @@ class UI(Tk):
 		ctrl = Frame(self)
 		ctrl.grid(row=0, column=1)
 		self.display_mode = IntVar()
+		self.display_mode.set(1)
 		for i, lbl in enumerate(('One', 'Two')):
 			rb = Radiobutton(ctrl, text=lbl, variable=self.display_mode, value=i)
 			rb.pack(anchor=W)
 			rb.bind('<Button-1>', onclickmode)
+		self.do_remap_colors = BooleanVar()
+		self.do_remap_colors.set(1)
+		cb = Checkbutton(ctrl, text='Remap colors', variable=self.do_remap_colors, command=onclick_remapcolors)
+		cb.pack(anchor=W)
 		# Display
 		disp = Frame(self)
 		disp.grid(row=1, column=1)
@@ -61,6 +72,14 @@ class UI(Tk):
 		self.label_x.grid(row=0, column=0)
 		self.label_y.grid(row=1, column=0)
 		self.label_cat.grid(row=2, column=0)
+
+	def load_frame(self, frame):
+		if isinstance(frame, int): frame = '%05d' % frame
+		self.winfo_toplevel().title("frame %s" % frame)
+		self.frame_i = int(frame)
+		impath   = os.path.join(ORIG_DIR, frame+'.jpg')
+		maskpath = os.path.join(MASK_DIR, frame+'.png')
+		self.load( impath, maskpath )
 
 	def load(self, impath, maskpath):
 		self.img        = Image.open(impath)
@@ -77,10 +96,11 @@ class UI(Tk):
 		# Save scaling factor
 		canvas.scaling_factor = scale
 		# Remap colors to enhance distinction in pcolormesh
-		val2new = dict([(v,i) for i,v in enumerate(np.unique(data))])
-		copy    = np.ndarray(data.shape, data.dtype)
-		for v in val2new.keys(): copy[np.where(data == v)] = val2new[v]
-		data = copy
+		if self.do_remap_colors.get():
+			val2new = dict([(v,i) for i,v in enumerate(np.unique(data))])
+			copy    = np.ndarray(data.shape, data.dtype)
+			for v in val2new.keys(): copy[np.where(data == v)] = val2new[v]
+			data = copy
 		# Build pyplot figure
 		dpi = 100
 		fig = plt.figure(figsize=(data.shape[1]*scale/dpi, data.shape[0]*scale/dpi), dpi=dpi)
@@ -138,10 +158,18 @@ def onkeypress(evt):
 	elif evt.char.lower() == 'c':
 		ui.canvas.delete(ALL)
 	print(evt.char)
+def onrightpress(evt):
+	if ui.frame_i < 9999:
+		ui.load_frame( ui.frame_i + 1 )
+def onleftpress(evt):
+	if ui.frame_i > 1:
+		ui.load_frame( ui.frame_i - 1 )
 
 def on_canvas_motion(evt):
 	ui.on_canvas_motion(evt)
 
+def onclick_remapcolors():
+	print(ui.do_remap_colors.get())
 def onclickmode(evt):
 	val = evt.widget.config('value')[4]
 	if val == 0:
